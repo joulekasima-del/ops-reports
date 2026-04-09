@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Operations Dashboard — Director</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --surface-2: #1c2128;
+      --border:    #21262d;
+      --border-2:  #30363d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --accent:    #f0a500;
+      --accent-2:  #e05c1a;
+      --green:     #3fb950;
+      --red:       #f85149;
+      --yellow:    #d29922;
+      --blue:      #388bfd;
+      --purple:    #bc8cff;
+      --radius:    10px;
+      --font:      'Barlow', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; }
+
+    /* ─── Header ──────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 12px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 20px; font-weight: 700; letter-spacing: .5px;
+      color: var(--text); text-decoration: none;
+    }
+    .logo-icon {
+      width: 32px; height: 32px; background: var(--accent);
+      border-radius: 6px; display: grid; place-items: center;
+    }
+    .logo-icon svg { width: 18px; height: 18px; fill: #000; }
+    nav a {
+      color: var(--muted); text-decoration: none; font-size: 14px;
+      font-weight: 500; padding: 6px 14px; border-radius: 6px; transition: all .15s;
+    }
+    nav a:hover, nav a.active { color: var(--text); background: var(--border); }
+    .badge {
+      background: var(--red); color: #fff; font-size: 11px; font-weight: 700;
+      border-radius: 10px; padding: 1px 7px; margin-left: 6px; font-family: var(--font-mono);
+    }
+
+    /* ─── Layout ──────────────────────────────────── */
+    .dashboard-wrap { max-width: 1280px; margin: 0 auto; padding: 28px 24px 80px; }
+
+    /* ─── Stats bar ───────────────────────────────── */
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+    }
+    .stat-num {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 34px; font-weight: 800; line-height: 1;
+    }
+    .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; }
+    .stat-num.c-red    { color: var(--red);    }
+    .stat-num.c-yellow { color: var(--yellow); }
+    .stat-num.c-green  { color: var(--green);  }
+    .stat-num.c-blue   { color: var(--blue);   }
+    .stat-num.c-accent { color: var(--accent); }
+
+    /* ─── Filter bar ──────────────────────────────── */
+    .filter-bar {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+    .filter-bar label { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .5px; white-space: nowrap; }
+    .filter-bar select, .filter-bar input[type="text"] {
+      background: var(--bg); border: 1px solid var(--border-2);
+      border-radius: 6px; color: var(--text); font-family: var(--font);
+      font-size: 13px; padding: 8px 12px; outline: none; transition: border-color .15s;
+      appearance: none;
+    }
+    .filter-bar select:focus, .filter-bar input:focus { border-color: var(--accent); }
+    .filter-group { display: flex; align-items: center; gap: 8px; }
+    .btn-reset {
+      padding: 8px 14px; background: transparent;
+      border: 1px solid var(--border-2); border-radius: 6px;
+      color: var(--muted); font-family: var(--font); font-size: 13px;
+      cursor: pointer; transition: all .15s;
+    }
+    .btn-reset:hover { border-color: var(--muted); color: var(--text); }
+
+    /* ─── Report cards ────────────────────────────── */
+    #reportGrid { display: flex; flex-direction: column; gap: 14px; }
+
+    .report-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+    .report-card:hover { border-color: var(--border-2); }
+    .report-card.overdue { border-color: rgba(248,81,73,.45); }
+    .report-card.overdue .card-header { background: rgba(248,81,73,.06); }
+
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 10px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .card-date { font-size: 13px; color: var(--muted); font-family: var(--font-mono); }
+    .chip {
+      font-size: 12px; font-weight: 700; padding: 3px 10px;
+      border-radius: 20px; letter-spacing: .3px;
+    }
+    .chip-company   { background: rgba(56,139,253,.12);  color: var(--blue);   border: 1px solid rgba(56,139,253,.25);  }
+    .chip-dept      { background: rgba(188,140,255,.1);  color: var(--purple); border: 1px solid rgba(188,140,255,.2);  }
+    .chip-low       { background: rgba(63,185,80,.1);    color: var(--green);  border: 1px solid rgba(63,185,80,.25);   }
+    .chip-medium    { background: rgba(210,153,34,.1);   color: var(--yellow); border: 1px solid rgba(210,153,34,.25);  }
+    .chip-high      { background: rgba(248,81,73,.12);   color: var(--red);    border: 1px solid rgba(248,81,73,.3);    }
+    .chip-overdue   { background: rgba(248,81,73,.18);   color: var(--red);    border: 1px solid var(--red);            animation: pulse 1.5s infinite; }
+    .chip-completed { background: rgba(63,185,80,.12);   color: var(--green);  border: 1px solid rgba(63,185,80,.3);    }
+    .chip-progress  { background: rgba(240,165,0,.1);    color: var(--accent); border: 1px solid rgba(240,165,0,.3);    }
+    .chip-later     { background: rgba(139,148,158,.1);  color: var(--muted);  border: 1px solid rgba(139,148,158,.2);  }
+    .chip-none      { background: rgba(63,185,80,.06);   color: #5a8f64;       border: 1px solid rgba(63,185,80,.15);   }
+    .chip-unread    { background: rgba(248,81,73,.1);    color: var(--red);    border: 1px solid rgba(248,81,73,.2);    }
+    .chip-read      { background: rgba(210,153,34,.1);   color: var(--yellow); border: 1px solid rgba(210,153,34,.2);   }
+    .chip-ack       { background: rgba(63,185,80,.1);    color: var(--green);  border: 1px solid rgba(63,185,80,.2);    }
+    .chip-meeting   { background: rgba(188,140,255,.1);  color: var(--purple); border: 1px solid rgba(188,140,255,.25); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .65; }
+    }
+
+    .card-body { padding: 18px 20px; }
+    .reported-by { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+    .reported-by strong { color: var(--text); }
+    .report-text {
+      font-size: 14px; line-height: 1.65; color: #cdd9e5;
+      background: var(--bg); border-radius: 6px;
+      padding: 12px 14px; border: 1px solid var(--border);
+      margin-bottom: 14px; white-space: pre-wrap;
+    }
+
+    /* ─── Countdown timer ─────────────────────────── */
+    .timeframe-row {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .timeframe-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+    .countdown {
+      font-family: var(--font-mono); font-size: 13px; font-weight: 500;
+      padding: 4px 12px; border-radius: 6px; border: 1px solid;
+    }
+    .countdown.green  { color: var(--green);  background: rgba(63,185,80,.08);  border-color: rgba(63,185,80,.25);  }
+    .countdown.yellow { color: var(--yellow); background: rgba(210,153,34,.08); border-color: rgba(210,153,34,.25); }
+    .countdown.red    { color: var(--red);    background: rgba(248,81,73,.08);  border-color: rgba(248,81,73,.25);  }
+    .countdown.over   { color: var(--red);    background: rgba(248,81,73,.15);  border-color: var(--red);           font-weight: 700; }
+
+    /* ─── Card controls ───────────────────────────── */
+    .card-controls {
+      display: flex; flex-wrap: wrap; gap: 10px;
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      background: rgba(255,255,255,.015);
+      align-items: flex-start;
+    }
+    .control-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 160px; }
+    .control-group-label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: .7px; text-transform: uppercase; }
+
+    .btn-set {
+      padding: 7px 13px; border-radius: 6px; border: 1px solid var(--border-2);
+      background: var(--bg); color: var(--muted);
+      font-family: var(--font); font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all .15s; white-space: nowrap;
+    }
+    .btn-set:hover { border-color: var(--accent); color: var(--accent); background: rgba(240,165,0,.07); }
+    .btn-set.active { border-color: var(--accent); color: var(--accent); background: rgba(240,165,0,.1); }
+
+    .btn-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    /* ─── Comment ─────────────────────────────────── */
+    .comment-section { padding: 14px 20px; border-top: 1px solid var(--border); }
+    .comment-header  { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .7px; margin-bottom: 8px; }
+    .existing-comment {
+      font-size: 13px; color: #cdd9e5; background: var(--bg);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px 12px; margin-bottom: 8px; white-space: pre-wrap;
+    }
+    .comment-form { display: flex; gap: 8px; }
+    .comment-form textarea {
+      flex: 1; background: var(--bg); border: 1px solid var(--border-2);
+      border-radius: 6px; color: var(--text); font-family: var(--font);
+      font-size: 13px; padding: 8px 12px; outline: none;
+      resize: none; min-height: 60px; transition: border-color .15s;
+    }
+    .comment-form textarea:focus { border-color: var(--accent); }
+    .btn-comment {
+      padding: 8px 16px; background: var(--accent); color: #000;
+      border: none; border-radius: 6px; font-family: var(--font);
+      font-size: 13px; font-weight: 700; cursor: pointer; align-self: flex-end;
+      transition: background .15s;
+    }
+    .btn-comment:hover { background: #ffb800; }
+
+    /* ─── New timeframe modal ─────────────────────── */
+    .timeframe-update { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .timeframe-update input[type="datetime-local"] {
+      background: var(--bg); border: 1px solid var(--border-2); border-radius: 6px;
+      color: var(--text); font-family: var(--font); font-size: 13px; padding: 7px 11px;
+      outline: none; transition: border-color .15s;
+    }
+    .timeframe-update input:focus { border-color: var(--accent); }
+    .btn-update-time {
+      padding: 7px 14px; background: var(--accent); color: #000;
+      border: none; border-radius: 6px; font-family: var(--font);
+      font-size: 13px; font-weight: 700; cursor: pointer; transition: background .15s;
+    }
+    .btn-update-time:hover { background: #ffb800; }
+
+    /* ─── History log ─────────────────────────────── */
+    .history-log {
+      font-size: 12px; color: var(--muted);
+      border-top: 1px solid var(--border); padding: 10px 20px;
+      font-family: var(--font-mono);
+      line-height: 1.8;
+    }
+    .history-title { font-weight: 700; color: var(--muted); margin-bottom: 4px; letter-spacing: .5px; text-transform: uppercase; }
+
+    /* ─── Empty state ─────────────────────────────── */
+    .empty-state {
+      text-align: center; padding: 80px 20px; color: var(--muted);
+    }
+    .empty-icon { font-size: 48px; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 20px; color: var(--text); margin-bottom: 8px; }
+    .empty-state p  { font-size: 14px; }
+
+    /* ─── Loading ─────────────────────────────────── */
+    .loading { text-align: center; padding: 60px; color: var(--muted); font-size: 14px; }
+    .spinner {
+      width: 32px; height: 32px; border: 3px solid var(--border-2);
+      border-top-color: var(--accent); border-radius: 50%;
+      animation: spin .7s linear infinite; margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── Toast ───────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 32px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--surface); border: 1px solid var(--border-2);
+      border-radius: 8px; padding: 12px 22px; font-size: 14px; font-weight: 600;
+      opacity: 0; transition: all .3s; z-index: 999; pointer-events: none; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #toast.success { border-color: var(--green); color: var(--green); }
+    #toast.error   { border-color: var(--red);   color: var(--red);   }
+    #toast.info    { border-color: var(--blue);  color: var(--blue);  }
+  </style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="index.html">
+    <span class="logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+    </span>
+    OPS REPORTS
+  </a>
+  <nav>
+    <a href="index.html">Submit Report</a>
+    <a href="dashboard.html" class="active">Director Dashboard <span class="badge" id="unreadBadge" style="display:none">0</span></a>
+  </nav>
+</header>
+
+<div class="dashboard-wrap">
+
+  <!-- Stats bar -->
+  <div class="stats-bar" id="statsBar">
+    <div class="stat"><div class="stat-num c-accent" id="s-total">—</div><div class="stat-label">Total Reports</div></div>
+    <div class="stat"><div class="stat-num c-red"    id="s-unread">—</div><div class="stat-label">Unread</div></div>
+    <div class="stat"><div class="stat-num c-red"    id="s-overdue">—</div><div class="stat-label">Overdue</div></div>
+    <div class="stat"><div class="stat-num c-yellow" id="s-action">—</div><div class="stat-label">Needs Action</div></div>
+    <div class="stat"><div class="stat-num c-green"  id="s-completed">—</div><div class="stat-label">Completed</div></div>
+    <div class="stat"><div class="stat-num c-blue"   id="s-high">—</div><div class="stat-label">High Priority</div></div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-bar">
+    <div class="filter-group">
+      <label>COMPANY</label>
+      <select id="f-company">
+        <option value="">All</option>
+        <option>Progression Vertical Gym</option>
+        <option>Chiang Mai Rock Climbing Adventures</option>
+        <option>Progression Equipments</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>PRIORITY</label>
+      <select id="f-priority">
+        <option value="">All</option>
+        <option>High</option>
+        <option>Medium</option>
+        <option>Low</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>STATUS</label>
+      <select id="f-status">
+        <option value="">All</option>
+        <option value="Unread">Unread</option>
+        <option value="Read">Read</option>
+        <option value="Acknowledged">Acknowledged</option>
+        <option value="Later">Later</option>
+        <option value="In Progress">In Progress</option>
+        <option value="Completed">Completed</option>
+        <option value="Need More Time">Need More Time</option>
+        <option value="No Action Needed">No Action Needed</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>SHOW</label>
+      <select id="f-overdue">
+        <option value="">All</option>
+        <option value="overdue">Overdue Only</option>
+        <option value="action">Needs Action</option>
+        <option value="meeting">Meeting Requested</option>
+      </select>
+    </div>
+    <button class="btn-reset" onclick="resetFilters()">✕ Reset</button>
+  </div>
+
+  <!-- Report list -->
+  <div id="reportGrid">
+    <div class="loading">
+      <div class="spinner"></div>
+      Loading reports…
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script src="js/firebase-config.js"></script>
+
+<script>
+// ════════════════════════════════════════════════
+//  DASHBOARD LOGIC
+// ════════════════════════════════════════════════
+
+let allReports = [];    // full cached list
+let countdownIntervals = {};  // timer refs by report ID
+
+// ── Real-time listener ────────────────────────
+db.collection('reports')
+  .orderBy('submittedAt', 'desc')
+  .onSnapshot(snapshot => {
+    allReports = [];
+    snapshot.forEach(doc => {
+      allReports.push({ id: doc.id, ...doc.data() });
+    });
+    checkOverdue();
+    renderDashboard();
+    updateStats();
+  }, err => {
+    console.error(err);
+    document.getElementById('reportGrid').innerHTML =
+      '<div class="empty-state"><div class="empty-icon">⚠️</div><h3>Connection error</h3><p>Could not load reports. Check Firebase config.</p></div>';
+  });
+
+// ── Check & mark overdue ──────────────────────
+function checkOverdue() {
+  const now = Date.now();
+  allReports.forEach(r => {
+    if (r.completionTimeframe && r.actionStatus !== 'Completed') {
+      const due = new Date(r.completionTimeframe).getTime();
+      if (due < now && !r.isOverdue) {
+        db.collection('reports').doc(r.id).update({ isOverdue: true });
+        r.isOverdue = true;
+      }
+    }
+  });
+}
+
+// ── Filter getters ────────────────────────────
+function getFilters() {
+  return {
+    company:  document.getElementById('f-company').value,
+    priority: document.getElementById('f-priority').value,
+    status:   document.getElementById('f-status').value,
+    special:  document.getElementById('f-overdue').value,
+  };
+}
+function resetFilters() {
+  ['f-company','f-priority','f-status','f-overdue'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  renderDashboard();
+}
+['f-company','f-priority','f-status','f-overdue'].forEach(id => {
+  document.getElementById(id).addEventListener('change', renderDashboard);
+});
+
+// ── Apply filters ─────────────────────────────
+function applyFilters(reports) {
+  const f = getFilters();
+  return reports.filter(r => {
+    if (f.company  && r.company  !== f.company)  return false;
+    if (f.priority && r.priority !== f.priority) return false;
+    if (f.status) {
+      const s = f.status;
+      if (s === 'Unread' && r.directorStatus !== 'Unread') return false;
+      if (s === 'Read'   && r.directorStatus !== 'Read')   return false;
+      if (s === 'Acknowledged' && r.directorStatus !== 'Acknowledged') return false;
+      if (['Later','In Progress','Completed','Need More Time','No Action Needed'].includes(s)
+          && r.actionStatus !== s) return false;
+    }
+    if (f.special === 'overdue'  && !r.isOverdue)              return false;
+    if (f.special === 'action'   && r.actionRequired !== 'Yes') return false;
+    if (f.special === 'meeting'  && r.meetingRequest !== 'Yes') return false;
+    return true;
+  });
+}
+
+// ── Update stats bar ──────────────────────────
+function updateStats() {
+  document.getElementById('s-total').textContent     = allReports.length;
+  document.getElementById('s-unread').textContent    = allReports.filter(r => r.directorStatus === 'Unread').length;
+  document.getElementById('s-overdue').textContent   = allReports.filter(r => r.isOverdue && r.actionStatus !== 'Completed').length;
+  document.getElementById('s-action').textContent    = allReports.filter(r => r.actionRequired === 'Yes' && r.actionStatus !== 'Completed').length;
+  document.getElementById('s-completed').textContent = allReports.filter(r => r.actionStatus === 'Completed').length;
+  document.getElementById('s-high').textContent      = allReports.filter(r => r.priority === 'High').length;
+
+  const unread = allReports.filter(r => r.directorStatus === 'Unread').length;
+  const badge  = document.getElementById('unreadBadge');
+  badge.textContent    = unread;
+  badge.style.display  = unread > 0 ? 'inline' : 'none';
+}
+
+// ── Main render ───────────────────────────────
+function renderDashboard() {
+  // Clear existing timers
+  Object.values(countdownIntervals).forEach(clearInterval);
+  countdownIntervals = {};
+
+  const filtered = applyFilters(allReports);
+  const grid = document.getElementById('reportGrid');
+
+  if (!filtered.length) {
+    grid.innerHTML = `<div class="empty-state"><div class="empty-icon">📭</div><h3>No reports found</h3><p>Try adjusting the filters above.</p></div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(r => buildCard(r)).join('');
+
+  // Start countdowns
+  filtered.forEach(r => {
+    if (r.completionTimeframe && r.actionStatus !== 'Completed') {
+      startCountdown(r.id, r.completionTimeframe);
+    }
+  });
+}
+
+// ── Build a report card ───────────────────────
+function buildCard(r) {
+  const priorityChip = `<span class="chip chip-${r.priority.toLowerCase()}">${r.priority}</span>`;
+  const statusChip   = buildStatusChip(r);
+  const readChip     = buildReadChip(r.directorStatus);
+  const meetingChip  = r.meetingRequest === 'Yes' ? `<span class="chip chip-meeting">📅 Meeting</span>` : '';
+  const overdueChip  = r.isOverdue && r.actionStatus !== 'Completed' ? `<span class="chip chip-overdue">🔴 OVERDUE</span>` : '';
+  const ts           = r.submittedAt?.toDate ? r.submittedAt.toDate().toLocaleString() : '—';
+
+  const timeframeRow = r.completionTimeframe ? `
+    <div class="timeframe-row">
+      <span class="timeframe-label">Deadline:</span>
+      <span style="font-size:13px;color:var(--muted)">${new Date(r.completionTimeframe).toLocaleString()}</span>
+      <span class="countdown" id="cd-${r.id}">calculating…</span>
+    </div>` : '';
+
+  const historyLog = r.timeframeHistory && r.timeframeHistory.length ? `
+    <div class="history-log">
+      <div class="history-title">📋 Timeframe Change Log</div>
+      ${r.timeframeHistory.map(h => `<div>→ ${h.changedAt} — Set to: ${h.newTimeframe} (was: ${h.oldTimeframe})</div>`).join('')}
+    </div>` : '';
+
+  const existingComment = r.directorComment ? `<div class="existing-comment">${escHtml(r.directorComment)}</div>` : '';
+
+  const needMoreTimeSection = r.actionStatus === 'Need More Time' ? `
+    <div class="timeframe-update">
+      <span style="font-size:13px;color:var(--muted);font-weight:600;">New Deadline:</span>
+      <input type="datetime-local" id="newTf-${r.id}" />
+      <button class="btn-update-time" onclick="updateTimeframe('${r.id}')">Update</button>
+    </div>` : '';
+
+  return `
+<div class="report-card${r.isOverdue && r.actionStatus !== 'Completed' ? ' overdue' : ''}" id="card-${r.id}">
+  <div class="card-header">
+    <div class="card-meta">
+      <span class="card-date">${r.date} · ${ts}</span>
+      <span class="chip chip-company">${r.company}</span>
+      <span class="chip chip-dept">${r.department}</span>
+      ${priorityChip}
+      ${meetingChip}
+      ${overdueChip}
+    </div>
+    <div class="card-meta">
+      ${readChip}
+      ${statusChip}
+    </div>
+  </div>
+
+  <div class="card-body">
+    <div class="reported-by">Reported by: <strong>${escHtml(r.reportedBy)}</strong></div>
+    <div class="report-text">${escHtml(r.reportDetails)}</div>
+    ${timeframeRow}
+    ${needMoreTimeSection}
+  </div>
+
+  <div class="card-controls">
+    <!-- Director read status -->
+    <div class="control-group">
+      <div class="control-group-label">Read Status</div>
+      <div class="btn-row">
+        <button class="btn-set ${r.directorStatus==='Read'?'active':''}"
+          onclick="setDirectorStatus('${r.id}','Read')">📖 Read</button>
+        <button class="btn-set ${r.directorStatus==='Acknowledged'?'active':''}"
+          onclick="setDirectorStatus('${r.id}','Acknowledged')">✅ Acknowledged</button>
+      </div>
+    </div>
+
+    <!-- Action status (only if action required) -->
+    ${r.actionRequired === 'Yes' ? `
+    <div class="control-group">
+      <div class="control-group-label">Action Status</div>
+      <div class="btn-row">
+        <button class="btn-set ${r.actionStatus==='Later'?'active':''}"
+          onclick="setActionStatus('${r.id}','Later')">🕐 Later</button>
+        <button class="btn-set ${r.actionStatus==='In Progress'?'active':''}"
+          onclick="setActionStatus('${r.id}','In Progress')">⚡ In Progress</button>
+        <button class="btn-set ${r.actionStatus==='Completed'?'active':''}"
+          onclick="setActionStatus('${r.id}','Completed')">✔ Completed</button>
+        <button class="btn-set ${r.actionStatus==='Need More Time'?'active':''}"
+          onclick="setActionStatus('${r.id}','Need More Time')">⏳ Need More Time</button>
+      </div>
+    </div>` : ''}
+  </div>
+
+  <div class="comment-section">
+    <div class="comment-header">Director Notes</div>
+    ${existingComment}
+    <div class="comment-form">
+      <textarea id="cmtTa-${r.id}" placeholder="Add instructions, notes, or updates…" rows="2"></textarea>
+      <button class="btn-comment" onclick="saveComment('${r.id}')">Save</button>
+    </div>
+  </div>
+
+  ${historyLog}
+</div>`;
+}
+
+// ── Chip builders ─────────────────────────────
+function buildStatusChip(r) {
+  const s = r.actionStatus;
+  const map = {
+    'No Action Needed': 'chip-none',
+    'Later':            'chip-later',
+    'In Progress':      'chip-progress',
+    'Completed':        'chip-completed',
+    'Need More Time':   'chip-yellow',
+  };
+  const emoji = {
+    'No Action Needed': '○',
+    'Later': '🕐',
+    'In Progress': '⚡',
+    'Completed': '✔',
+    'Need More Time': '⏳',
+  };
+  return `<span class="chip ${map[s]||'chip-later'}">${emoji[s]||''} ${s}</span>`;
+}
+function buildReadChip(ds) {
+  const map = { 'Unread': 'chip-unread', 'Read': 'chip-read', 'Acknowledged': 'chip-ack' };
+  const em  = { 'Unread': '●', 'Read': '◎', 'Acknowledged': '✓' };
+  return `<span class="chip ${map[ds]||'chip-unread'}">${em[ds]||''} ${ds}</span>`;
+}
+
+// ── Countdown timer ───────────────────────────
+function startCountdown(id, timeframeStr) {
+  const el = document.getElementById(`cd-${id}`);
+  if (!el) return;
+
+  function tick() {
+    const diff = new Date(timeframeStr).getTime() - Date.now();
+    if (diff <= 0) {
+      el.textContent = '⚠ OVERDUE';
+      el.className   = 'countdown over';
+      return;
+    }
+    const days  = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff % 86400000) / 3600000);
+    const mins  = Math.floor((diff % 3600000)  / 60000);
+    const secs  = Math.floor((diff % 60000)    / 1000);
+
+    let label = '';
+    if (days  > 0) label += `${days}d `;
+    if (hours > 0) label += `${hours}h `;
+    if (mins  > 0) label += `${mins}m `;
+    label += `${secs}s`;
+
+    el.textContent = label;
+
+    // Color coding
+    if (diff > 86400000 * 2) {         // > 2 days
+      el.className = 'countdown green';
+    } else if (diff > 86400000) {       // 1–2 days
+      el.className = 'countdown yellow';
+    } else {                            // < 1 day
+      el.className = 'countdown red';
+    }
+  }
+
+  tick();
+  countdownIntervals[id] = setInterval(tick, 1000);
+}
+
+// ── Firestore update helpers ──────────────────
+async function setDirectorStatus(id, status) {
+  try {
+    await db.collection('reports').doc(id).update({ directorStatus: status });
+    showToast(`Status set to "${status}"`, 'success');
+  } catch (e) { showToast('Update failed', 'error'); }
+}
+
+async function setActionStatus(id, status) {
+  const update = { actionStatus: status };
+  if (status === 'Completed') {
+    update.isOverdue = false;
+    clearInterval(countdownIntervals[id]);
+  }
+  try {
+    await db.collection('reports').doc(id).update(update);
+    showToast(`Action: "${status}"`, 'success');
+  } catch (e) { showToast('Update failed', 'error'); }
+}
+
+async function saveComment(id) {
+  const ta  = document.getElementById(`cmtTa-${id}`);
+  const txt = ta.value.trim();
+  if (!txt) return;
+  try {
+    await db.collection('reports').doc(id).update({ directorComment: txt });
+    ta.value = '';
+    showToast('Comment saved.', 'success');
+  } catch (e) { showToast('Save failed', 'error'); }
+}
+
+async function updateTimeframe(id) {
+  const inp = document.getElementById(`newTf-${id}`);
+  if (!inp || !inp.value) { showToast('Please select a new deadline.', 'error'); return; }
+
+  const report = allReports.find(r => r.id === id);
+  if (!report) return;
+
+  const history = report.timeframeHistory || [];
+  history.push({
+    oldTimeframe: report.completionTimeframe || '—',
+    newTimeframe: inp.value,
+    changedAt: new Date().toLocaleString(),
+  });
+
+  try {
+    await db.collection('reports').doc(id).update({
+      completionTimeframe: inp.value,
+      actionStatus: 'In Progress',
+      isOverdue: false,
+      timeframeHistory: history,
+    });
+    showToast('Timeframe updated & timer reset.', 'success');
+  } catch (e) { showToast('Update failed', 'error'); }
+}
+
+// ── Utility ───────────────────────────────────
+function escHtml(str) {
+  return String(str || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg, type='info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'show ' + type;
+  setTimeout(() => { t.className = ''; }, 2800);
+}
+</script>
+</body>
+</html>

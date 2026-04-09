@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Operations Report — Submit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Firebase Compat SDK (v8-style, beginner-friendly) -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+  <style>
+    /* ─── Design System ───────────────────────────── */
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --border:    #21262d;
+      --border-2:  #30363d;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --accent:    #f0a500;
+      --accent-2:  #e05c1a;
+      --green:     #3fb950;
+      --red:       #f85149;
+      --yellow:    #d29922;
+      --blue:      #388bfd;
+      --radius:    10px;
+      --shadow:    0 4px 24px rgba(0,0,0,.45);
+      --font:      'Barlow', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 15px;
+      min-height: 100vh;
+    }
+
+    /* ─── Header ──────────────────────────────────── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: .5px;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .logo-icon {
+      width: 32px; height: 32px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+    }
+    .logo-icon svg { width: 18px; height: 18px; fill: #000; }
+    nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 6px;
+      transition: all .15s;
+    }
+    nav a:hover, nav a.active {
+      color: var(--text);
+      background: var(--border);
+    }
+
+    /* ─── Page layout ─────────────────────────────── */
+    main {
+      max-width: 760px;
+      margin: 48px auto;
+      padding: 0 24px 80px;
+    }
+    .page-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: .3px;
+      margin-bottom: 6px;
+    }
+    .page-subtitle { color: var(--muted); font-size: 14px; margin-bottom: 36px; }
+
+    /* ─── Card ────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      margin-bottom: 20px;
+    }
+    .card-section-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ─── Form fields ─────────────────────────────── */
+    .field { margin-bottom: 20px; }
+    .field:last-child { margin-bottom: 0; }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 7px;
+      letter-spacing: .3px;
+    }
+    label .req { color: var(--accent-2); margin-left: 3px; }
+
+    input[type="text"],
+    input[type="date"],
+    input[type="datetime-local"],
+    select,
+    textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border-2);
+      border-radius: 7px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 15px;
+      padding: 11px 14px;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+      appearance: none;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(240,165,0,.12);
+    }
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b949e' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 40px;
+      cursor: pointer;
+    }
+    textarea { resize: vertical; min-height: 110px; line-height: 1.6; }
+
+    /* ─── Two-column grid ─────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 560px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    /* ─── Toggle (Yes/No) ─────────────────────────── */
+    .toggle-group {
+      display: flex;
+      gap: 8px;
+    }
+    .toggle-btn {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid var(--border-2);
+      border-radius: 7px;
+      background: var(--bg);
+      color: var(--muted);
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+      text-align: center;
+    }
+    .toggle-btn:hover { border-color: var(--muted); color: var(--text); }
+    .toggle-btn.active-yes { background: rgba(63,185,80,.12); border-color: var(--green); color: var(--green); }
+    .toggle-btn.active-no  { background: rgba(248,81,73,.1);  border-color: var(--red);   color: var(--red);   }
+
+    /* ─── Priority ────────────────────────────────── */
+    .priority-group { display: flex; gap: 8px; }
+    .priority-btn {
+      flex: 1;
+      padding: 10px;
+      border-radius: 7px;
+      border: 1px solid var(--border-2);
+      background: var(--bg);
+      color: var(--muted);
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+      text-align: center;
+    }
+    .priority-btn:hover { border-color: var(--muted); color: var(--text); }
+    .priority-btn[data-val="Low"].active    { background: rgba(63,185,80,.12);  border-color: var(--green);  color: var(--green);  }
+    .priority-btn[data-val="Medium"].active { background: rgba(210,153,34,.12); border-color: var(--yellow); color: var(--yellow); }
+    .priority-btn[data-val="High"].active   { background: rgba(248,81,73,.12);  border-color: var(--red);    color: var(--red);    }
+
+    /* ─── Conditional blocks ──────────────────────── */
+    .conditional {
+      display: none;
+      margin-top: 16px;
+      padding: 20px;
+      background: rgba(240,165,0,.04);
+      border: 1px solid rgba(240,165,0,.18);
+      border-radius: 8px;
+      animation: fadeIn .25s ease;
+    }
+    .conditional.visible { display: block; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+
+    /* ─── Submit button ───────────────────────────── */
+    .btn-submit {
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      color: #000;
+      font-family: var(--font);
+      font-size: 16px;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      letter-spacing: .3px;
+      transition: background .15s, transform .1s;
+      margin-top: 8px;
+    }
+    .btn-submit:hover:not(:disabled) { background: #ffb800; }
+    .btn-submit:active:not(:disabled) { transform: scale(.99); }
+    .btn-submit:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* ─── Toast ───────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--surface);
+      border: 1px solid var(--border-2);
+      border-radius: 8px;
+      padding: 14px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      opacity: 0;
+      transition: all .3s;
+      z-index: 999;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    #toast.success { border-color: var(--green); color: var(--green); }
+    #toast.error   { border-color: var(--red);   color: var(--red);   }
+
+    /* ─── Info box ────────────────────────────────── */
+    .info-box {
+      background: rgba(56,139,253,.08);
+      border: 1px solid rgba(56,139,253,.25);
+      border-radius: 7px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #7ab8f5;
+      margin-top: 14px;
+    }
+    .info-box strong { color: var(--blue); }
+  </style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="index.html">
+    <span class="logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+    </span>
+    OPS REPORTS
+  </a>
+  <nav>
+    <a href="index.html" class="active">Submit Report</a>
+    <a href="dashboard.html">Director Dashboard</a>
+  </nav>
+</header>
+
+<main>
+  <h1 class="page-title">Submit Operations Report</h1>
+  <p class="page-subtitle">All fields marked <span style="color:var(--accent-2)">*</span> are required.</p>
+
+  <form id="reportForm" novalidate>
+
+    <!-- ── Section 1: Basic Info ─────────────────── -->
+    <div class="card">
+      <div class="card-section-title">Report Information</div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label>Date <span class="req">*</span></label>
+          <input type="text" id="date" placeholder="08-Apr-2026" maxlength="11" required readonly style="cursor:default;" />
+        </div>
+        <div class="field">
+          <label>Company / Branch <span class="req">*</span></label>
+          <select id="company" required>
+            <option value="" disabled selected>Select company…</option>
+            <option>Progression Vertical Gym</option>
+            <option>Chiang Mai Rock Climbing Adventures</option>
+            <option>Progression Equipments</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label>Related Department <span class="req">*</span></label>
+          <input type="text" id="department" placeholder="e.g. Logistics, HR, Finance, IT…" required />
+        </div>
+        <div class="field">
+          <label>Reported By <span class="req">*</span></label>
+          <input type="text" id="reportedBy" placeholder="Your full name" required />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Priority <span class="req">*</span></label>
+        <div class="priority-group">
+          <button type="button" class="priority-btn" data-val="Low">🟢 Low</button>
+          <button type="button" class="priority-btn" data-val="Medium">🟡 Medium</button>
+          <button type="button" class="priority-btn" data-val="High">🔴 High</button>
+        </div>
+        <input type="hidden" id="priority" required />
+      </div>
+
+      <div class="field">
+        <label>Report Details <span class="req">*</span></label>
+        <textarea id="reportDetails" placeholder="Describe the situation, issue, or update in detail… (สามารถพิมพ์เป็นภาษาไทยได้)" required></textarea>
+      </div>
+    </div>
+
+    <!-- ── Section 2: Meeting Request ───────────── -->
+    <div class="card">
+      <div class="card-section-title">Meeting Request</div>
+      <div class="field">
+        <label>Request a Meeting with the Director?</label>
+        <div class="toggle-group">
+          <button type="button" class="toggle-btn" id="meetingYes" onclick="setToggle('meeting','Yes')">✓ Yes</button>
+          <button type="button" class="toggle-btn active-no" id="meetingNo"  onclick="setToggle('meeting','No')">✗ No</button>
+        </div>
+        <input type="hidden" id="meetingRequest" value="No" />
+      </div>
+
+      <div class="conditional" id="meetingBlock">
+        <div class="info-box">
+          <strong>📅 Google Task will be created</strong> — A task will be sent to the Director's calendar with a summary of this report when you submit.
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section 3: Director Action ───────────── -->
+    <div class="card">
+      <div class="card-section-title">Director Action Required</div>
+      <div class="field">
+        <label>Does this require action from the Director?</label>
+        <div class="toggle-group">
+          <button type="button" class="toggle-btn" id="actionYes" onclick="setToggle('action','Yes')">✓ Yes</button>
+          <button type="button" class="toggle-btn active-no" id="actionNo"  onclick="setToggle('action','No')">✗ No</button>
+        </div>
+        <input type="hidden" id="actionRequired" value="No" />
+      </div>
+
+      <div class="conditional" id="actionBlock">
+        <div class="grid-2">
+          <div class="field">
+            <label>Expected Completion Deadline <span class="req">*</span></label>
+            <input type="datetime-local" id="completionTimeframe" />
+          </div>
+          <div class="field">
+            <label>Initial Action Status</label>
+            <select id="actionStatus">
+              <option value="Later">🕐 Later</option>
+              <option value="In Progress">⚡ In Progress</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Submit ────────────────────────────────── -->
+    <button class="btn-submit" id="submitBtn" type="submit">
+      Submit Report
+    </button>
+
+  </form>
+</main>
+
+<div id="toast"></div>
+
+<!-- ── Firebase Config ──────────────────────────── -->
+<script src="js/firebase-config.js"></script>
+
+<script>
+// ════════════════════════════════════════════════
+//  FORM LOGIC
+// ════════════════════════════════════════════════
+
+// Set today's date in DD-MMM-YYYY format
+function formatDateDMY(d) {
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${dd}-${months[d.getMonth()]}-${d.getFullYear()}`;
+}
+document.getElementById('date').value = formatDateDMY(new Date());
+
+// ── Priority buttons ──────────────────────────
+document.querySelectorAll('.priority-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('priority').value = btn.dataset.val;
+  });
+});
+
+// ── Toggle helper (Meeting / Action) ──────────
+function setToggle(type, val) {
+  if (type === 'meeting') {
+    document.getElementById('meetingRequest').value = val;
+    document.getElementById('meetingYes').className = 'toggle-btn' + (val==='Yes' ? ' active-yes' : '');
+    document.getElementById('meetingNo').className  = 'toggle-btn' + (val==='No'  ? ' active-no'  : '');
+    document.getElementById('meetingBlock').classList.toggle('visible', val === 'Yes');
+  } else {
+    document.getElementById('actionRequired').value = val;
+    document.getElementById('actionYes').className = 'toggle-btn' + (val==='Yes' ? ' active-yes' : '');
+    document.getElementById('actionNo').className  = 'toggle-btn' + (val==='No'  ? ' active-no'  : '');
+    document.getElementById('actionBlock').classList.toggle('visible', val === 'Yes');
+    if (val === 'No') document.getElementById('completionTimeframe').removeAttribute('required');
+    else document.getElementById('completionTimeframe').setAttribute('required', '');
+  }
+}
+
+// ── Toast helper ──────────────────────────────
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  setTimeout(() => { t.className = ''; }, 3500);
+}
+
+// ── Form submit ───────────────────────────────
+document.getElementById('reportForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  // Basic validation
+  const fields = ['date','company','department','reportedBy','priority','reportDetails'];
+  for (const id of fields) {
+    if (!document.getElementById(id).value.trim()) {
+      showToast('Please fill in all required fields.', 'error');
+      document.getElementById(id).focus();
+      return;
+    }
+  }
+
+  const actionRequired = document.getElementById('actionRequired').value;
+  if (actionRequired === 'Yes' && !document.getElementById('completionTimeframe').value) {
+    showToast('Please set an expected completion timeframe.', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+
+  // ── Build report object ─────────────────────
+  const reportData = {
+    date:              document.getElementById('date').value,
+    company:           document.getElementById('company').value,
+    department:        document.getElementById('department').value,
+    reportedBy:        document.getElementById('reportedBy').value,
+    priority:          document.getElementById('priority').value,
+    reportDetails:     document.getElementById('reportDetails').value.trim(),
+    meetingRequest:    document.getElementById('meetingRequest').value,
+    actionRequired:    actionRequired,
+    actionStatus:      actionRequired === 'Yes'
+                         ? document.getElementById('actionStatus').value
+                         : 'No Action Needed',
+    completionTimeframe: actionRequired === 'Yes'
+                           ? document.getElementById('completionTimeframe').value
+                           : null,
+    directorStatus:    'Unread',
+    directorComment:   '',
+    submittedAt:       firebase.firestore.FieldValue.serverTimestamp(),
+    timeframeHistory:  [],
+    isOverdue:         false,
+  };
+
+  try {
+    // ── Save to Firestore ───────────────────────
+    const docRef = await db.collection('reports').add(reportData);
+
+    // ── Notify Slack ────────────────────────────
+    await sendSlackNotification(reportData);
+
+    // ── Create Google Task (if requested) ───────
+    if (reportData.meetingRequest === 'Yes') {
+      await createGoogleTask(reportData, docRef.id);
+    }
+
+    showToast('✅ Report submitted successfully!', 'success');
+    setTimeout(() => {
+      document.getElementById('reportForm').reset();
+      document.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('priority').value = '';
+      document.getElementById('meetingRequest').value = 'No';
+      document.getElementById('actionRequired').value = 'No';
+      document.getElementById('meetingBlock').classList.remove('visible');
+      document.getElementById('actionBlock').classList.remove('visible');
+      document.getElementById('meetingYes').className = 'toggle-btn';
+      document.getElementById('meetingNo').className  = 'toggle-btn active-no';
+      document.getElementById('actionYes').className  = 'toggle-btn';
+      document.getElementById('actionNo').className   = 'toggle-btn active-no';
+      document.getElementById('date').value = formatDateDMY(new Date());
+      btn.disabled = false;
+      btn.textContent = 'Submit Report';
+    }, 1200);
+
+  } catch (err) {
+    console.error(err);
+    showToast('❌ Submission failed. Check console.', 'error');
+    btn.disabled = false;
+    btn.textContent = 'Submit Report';
+  }
+});
+
+// ════════════════════════════════════════════════
+//  SLACK NOTIFICATION
+// ════════════════════════════════════════════════
+const SLACK_WEBHOOK = "https://hooks.slack.com/services/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";
+
+async function sendSlackNotification(report) {
+  const priorityEmoji = { High: '🔴', Medium: '🟡', Low: '🟢' };
+  const emoji = priorityEmoji[report.priority] || '⚪';
+
+  const lines = [
+    `🔔 *New Operations Report Submitted*`,
+    ``,
+    `📅 *Date:* ${report.date}`,
+    `🏢 *Company:* ${report.company}`,
+    `📂 *Related Department:* ${report.department}`,
+    `${emoji} *Priority:* ${report.priority.toUpperCase()}`,
+    `👤 *Reported by:* ${report.reportedBy}`,
+    ``,
+    `📋 *Details:*`,
+    `_${report.reportDetails}_`,
+    ``,
+    `📅 *Meeting Requested:* ${report.meetingRequest}`,
+    `⚡ *Action Required:* ${report.actionRequired}${report.actionRequired === 'Yes' ? ` — Deadline: ${new Date(report.completionTimeframe).toLocaleString('en-GB', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'})}` : ''}`,
+  ];
+
+  try {
+    await fetch(SLACK_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: lines.join('\n') }),
+    });
+  } catch (err) {
+    console.warn('Slack notification failed:', err);
+    // Don't block submission if Slack fails
+  }
+}
+
+// ════════════════════════════════════════════════
+//  GOOGLE TASKS API
+//  Requires: Google Cloud project + OAuth2 Client ID
+//  See README.md for full setup instructions
+// ════════════════════════════════════════════════
+async function createGoogleTask(report, reportId) {
+  // Load Google API client
+  await loadGapiScript();
+
+  return new Promise((resolve) => {
+    gapi.load('client:auth2', async () => {
+      await gapi.client.init({
+        clientId: GOOGLE_CLIENT_ID,  // defined in firebase-config.js
+        scope: 'https://www.googleapis.com/auth/tasks',
+        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/tasks/v1/rest']
+      });
+
+      // Sign in (popup)
+      if (!gapi.auth2.getAuthInstance().isSignedIn.get()) {
+        await gapi.auth2.getAuthInstance().signIn();
+      }
+
+      const due = report.completionTimeframe
+        ? new Date(report.completionTimeframe).toISOString()
+        : new Date(Date.now() + 86400000).toISOString();
+
+      const task = {
+        title: `[OPS REPORT] Meeting Request — ${report.company} / ${report.department}`,
+        notes: `Priority: ${report.priority}\nSubmitted by: ${report.reportedBy}\nDate: ${report.date}\n\n${report.reportDetails}\n\nReport ID: ${reportId}`,
+        due: due,
+        status: 'needsAction'
+      };
+
+      try {
+        await gapi.client.tasks.tasks.insert({ tasklist: '@default', resource: task });
+        console.log('Google Task created!');
+      } catch (err) {
+        console.warn('Google Task creation failed:', err);
+        // Don't block the report submission
+      }
+      resolve();
+    });
+  });
+}
+
+function loadGapiScript() {
+  return new Promise((resolve) => {
+    if (window.gapi) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://apis.google.com/js/api.js';
+    s.onload = resolve;
+    document.body.appendChild(s);
+  });
+}
+</script>
+</body>
+</html>

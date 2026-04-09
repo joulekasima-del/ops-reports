@@ -549,7 +549,7 @@ document.getElementById('reportForm').addEventListener('submit', async (e) => {
 // ════════════════════════════════════════════════
 //  SLACK NOTIFICATION
 // ════════════════════════════════════════════════
-const SLACK_WEBHOOK = "https://hooks.slack.com/services/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";
+const SLACK_WEBHOOK = "https://slack-proxy.joule.workers.dev";
 
 async function sendSlackNotification(report) {
   const priorityEmoji = { High: '🔴', Medium: '🟡', Low: '🟢' };

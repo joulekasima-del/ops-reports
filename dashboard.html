@@ -11,10 +11,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 
   <style>
-    25% { transform: translateX(-8px); }
-      75% { transform: translateX(8px); }
-    }
-  </style>
     :root {
       --bg:        #0d1117;
       --surface:   #161b22;
@@ -336,22 +332,6 @@
       </select>
     </div>
     <div class="filter-group">
-      <label>DEPARTMENT</label>
-      <select id="f-dept">
-        <option value="">All</option>
-        <option>Sales – Equipment</option>
-        <option>Marketing</option>
-        <option>Sales – Corporate / FIT</option>
-        <option>Sales – Groups / Schools</option>
-        <option>Product / Programs</option>
-        <option>Operations</option>
-        <option>HR & Administration</option>
-        <option>Accounting & Finance</option>
-        <option>Community Development</option>
-      </select>
-    </div>
-    </div>
-    <div class="filter-group">
       <label>PRIORITY</label>
       <select id="f-priority">
         <option value="">All</option>
@@ -446,16 +426,15 @@ function getFilters() {
     priority: document.getElementById('f-priority').value,
     status:   document.getElementById('f-status').value,
     special:  document.getElementById('f-overdue').value,
-    dept:     document.getElementById('f-dept').value,
   };
 }
 function resetFilters() {
-  ['f-company','f-priority','f-status','f-overdue','f-dept'].forEach(id => {
+  ['f-company','f-priority','f-status','f-overdue'].forEach(id => {
     document.getElementById(id).value = '';
   });
   renderDashboard();
 }
-['f-company','f-priority','f-status','f-overdue','f-dept'].forEach(id => {
+['f-company','f-priority','f-status','f-overdue'].forEach(id => {
   document.getElementById(id).addEventListener('change', renderDashboard);
 });
 
@@ -465,7 +444,6 @@ function applyFilters(reports) {
   return reports.filter(r => {
     if (f.company  && r.company  !== f.company)  return false;
     if (f.priority && r.priority !== f.priority) return false;
-    if (f.dept     && r.department !== f.dept)   return false;
     if (f.status) {
       const s = f.status;
       if (s === 'Unread' && r.directorStatus !== 'Unread') return false;
